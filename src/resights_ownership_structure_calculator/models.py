@@ -153,17 +153,56 @@ class OwnershipGraph(AggregatedModels):
 
     def get_direct_owners(self, target: OwnershipNode) -> Set[OwnershipRelation]:
         """Get all direct ownership relations where the given node is the target."""
-        return {rel for rel in self.relations if rel.target == target and rel.active}
+        graph = self.get_graph()
+        relations = set()
+
+        # Get all incoming edges to the target node
+        for source_id in graph.predecessors(target.id):
+            edge_data = graph.get_edge_data(source_id, target.id)
+
+            # Find the corresponding relation from our relations set
+            for relation in self.relations:
+                if (relation.source.id == source_id and 
+                    relation.target.id == target.id and 
+                    relation.id == edge_data['id'] and 
+                    relation.active):
+                    relations.add(relation)
+                    break
+        
+        return relations
 
     def get_direct_owned(self, source: OwnershipNode) -> Set[OwnershipRelation]:
         """Get all direct ownership relations where the given node is the source."""
-        return {rel for rel in self.relations if rel.source == source and rel.active}
+        graph = self.get_graph()
+        relations = set()
+        
+        # Get all outgoing edges from the source node
+        for target_id in graph.successors(source.id):
+            edge_data = graph.get_edge_data(source.id, target_id)
+            # Find the corresponding relation from our relations set
+            for relation in self.relations:
+                if (relation.source.id == source.id and 
+                    relation.target.id == target_id and 
+                    relation.id == edge_data['id'] and 
+                    relation.active):
+                    relations.add(relation)
+                    break
+        
+        return relations
     
 
     def get_all_owners(self, target: OwnershipNode) -> Set[OwnershipNode]:
-        """Get all owners of a given node."""
+        """Get all owners of a given node, including indirect owners."""
+        graph = self.get_graph()
         owners = set()
-        for relation in self.get_direct_owners(target):
-            owners.add(relation.source)
+        
+        # Get all nodes that can reach the target node
+        for source_id in nx.ancestors(graph, target.id):
+            # Find the corresponding node from our nodes set
+            for node in self.nodes:
+                if node.id == source_id:
+                    owners.add(node)
+                    break
+        
         return owners
 
