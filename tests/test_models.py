@@ -1,12 +1,16 @@
 import pytest
+import json
+import tempfile
 from typing import List, Dict, Any
+from pydantic import TypeAdapter
 
 from resights_ownership_structure_calculator.models import (
     OwnershipRelationData,
     OwnershipNode,
     ShareRange,
     OwnershipRelation,
-    OwnershipGraph
+    OwnershipGraph,
+    OwnershipRelationFile
 )
 
 
@@ -90,6 +94,17 @@ class TestOwnershipRelationData:
         sample_relation_data[field] = value
         relation_data = OwnershipRelationData(**sample_relation_data)
         assert getattr(relation_data, field) == value
+    
+    def test_load_from_file(self, sample_relations_data: List[Dict[str, Any]]) -> None:
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as temp_file:
+            json.dump(sample_relations_data, temp_file)
+            temp_file.flush()
+            
+            loaded_data = OwnershipRelationData.load_from_file(temp_file.name)
+            
+            assert len(loaded_data) == len(sample_relations_data)
+            assert loaded_data[0].id == sample_relations_data[0]["id"]
+            assert loaded_data[1].id == sample_relations_data[1]["id"]
 
 
 class TestOwnershipNode:
@@ -166,3 +181,9 @@ class TestOwnershipGraph:
         with pytest.raises(Exception):
             graph.nodes = {OwnershipNode(id="test", name="test")}
 
+
+class TestOwnershipRelationFile:
+    def test_validate_json(self, sample_relations_data: List[Dict[str, Any]]) -> None:
+        validated_data = TypeAdapter(list[OwnershipRelationData]).validate_python(sample_relations_data)
+        assert len(validated_data) == len(sample_relations_data)
+        assert all(isinstance(item, OwnershipRelationData) for item in validated_data)

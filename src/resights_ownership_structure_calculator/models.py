@@ -1,9 +1,12 @@
+from __future__ import annotations
+import json
 from typing import Optional, Set
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 
 class DataModel(BaseModel):
     ... 
+
 
 
 class OwnershipRelationData(DataModel):
@@ -19,6 +22,15 @@ class OwnershipRelationData(DataModel):
     real_average_share: Optional[float] = Field(default=None, description="Average ownership percentage")
     real_upper_share: Optional[float] = Field(default=None, description="Upper bound of the ownership percentage")
     active: bool = Field(description="Whether the ownership relation is currently active")
+
+    @classmethod 
+    def load_from_file(cls, file_path: str) -> list["OwnershipRelationData"]:
+        with open(file_path, "r") as f:
+            data = json.load(f)
+        return TypeAdapter(list[OwnershipRelationData]).validate_python(data)
+
+
+OwnershipRelationFile = TypeAdapter(list[OwnershipRelationData])
 
 
 class ProcessedModels(DataModel):
