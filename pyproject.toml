@@ -8,6 +8,7 @@ dependencies = [
     "dotenv>=0.9.9",
     "typer>=0.15.3",
     "mypy>=1.15.0",
+    "networkx>=3.4.2",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

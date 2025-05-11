@@ -24,6 +24,8 @@ mypy==1.15.0
     # via resights-ownership-structure-calculator
 mypy-extensions==1.1.0
     # via mypy
+networkx==3.4.2
+    # via resights-ownership-structure-calculator
 orjson==3.10.18
     # via resights-ownership-structure-calculator
 pydantic==2.11.4
