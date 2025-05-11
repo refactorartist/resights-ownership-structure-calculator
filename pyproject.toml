@@ -5,6 +5,7 @@ description = "Add your description here"
 dependencies = [
     "pydantic>=2.11.4",
     "orjson>=3.10.18",
+    "dotenv>=0.9.9",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"

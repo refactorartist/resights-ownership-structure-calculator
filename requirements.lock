@@ -12,12 +12,16 @@
 -e file:.
 annotated-types==0.7.0
     # via pydantic
+dotenv==0.9.9
+    # via resights-ownership-structure-calculator
 orjson==3.10.18
     # via resights-ownership-structure-calculator
 pydantic==2.11.4
     # via resights-ownership-structure-calculator
 pydantic-core==2.33.2
     # via pydantic
+python-dotenv==1.1.0
+    # via dotenv
 typing-extensions==4.13.2
     # via pydantic
     # via pydantic-core
