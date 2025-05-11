@@ -1,23 +1,50 @@
-from typing import Optional
-from pydantic import BaseModel
+from typing import Optional, Set
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OwnershipRelationData(BaseModel):
-    """
-    Represents an ownership relationship between two entities.
-    Based on the structure found in the JSON data files.
-    """
-    id: str
-    source: int
-    source_name: str
-    source_depth: int
-    target: int
-    target_name: str
-    target_depth: int
-    share: str
-    real_lower_share: Optional[float] = None
-    real_average_share: Optional[float] = None
-    real_upper_share: Optional[float] = None
-    active: bool
+    id: str = Field(description="Unique identifier for the ownership relation")
+    source: int = Field(description="ID of the source entity (owner)")
+    source_name: str = Field(description="Name of the source entity")
+    source_depth: int = Field(description="Depth level of the source entity in the ownership structure")
+    target: int = Field(description="ID of the target entity (owned)")
+    target_name: str = Field(description="Name of the target entity")
+    target_depth: int = Field(description="Depth level of the target entity in the ownership structure")
+    share: str = Field(description="Ownership share as a string (e.g. '100%', '10-15%')")
+    real_lower_share: Optional[float] = Field(default=None, description="Lower bound of the ownership percentage")
+    real_average_share: Optional[float] = Field(default=None, description="Average ownership percentage")
+    real_upper_share: Optional[float] = Field(default=None, description="Upper bound of the ownership percentage")
+    active: bool = Field(description="Whether the ownership relation is currently active")
 
 
+class OwnershipNode(BaseModel): 
+    id: str = Field(description="Unique identifier for the entity")
+    name: str = Field(description="Name of the entity")
+
+    model_config = ConfigDict(frozen=True)
+
+
+class ShareRange(BaseModel): 
+    lower: float = Field(description="Lower bound of the ownership percentage")
+    average: float = Field(description="Average ownership percentage")
+    upper: float = Field(description="Upper bound of the ownership percentage")
+    share: str = Field(description="Original share string representation")
+
+    model_config = ConfigDict(frozen=True)
+
+
+class OwnershipRelation(BaseModel): 
+    id: str = Field(description="Unique identifier for the ownership relation")
+    source: OwnershipNode = Field(description="Source entity (owner)")
+    target: OwnershipNode = Field(description="Target entity (owned)")
+    share: ShareRange = Field(description="Range of ownership percentages")
+    active: bool = Field(description="Whether the ownership relation is currently active")
+
+    model_config = ConfigDict(frozen=True)
+
+
+class OwnershipGraph(BaseModel): 
+    nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
+    relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
+
+    model_config = ConfigDict(frozen=True)
