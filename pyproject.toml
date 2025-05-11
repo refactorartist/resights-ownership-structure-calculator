@@ -2,7 +2,10 @@
 name = "resights-ownership-structure-calculator"
 version = "0.1.0"
 description = "Add your description here"
-dependencies = []
+dependencies = [
+    "pydantic>=2.11.4",
+    "orjson>=3.10.18",
+]
 readme = "README.md"
 requires-python = ">= 3.8"
 
