@@ -1,0 +1,57 @@
+{
+  "lockfile_version": "1",
+  "packages": {
+    "github:NixOS/nixpkgs/nixpkgs-unstable": {
+      "last_modified": "2025-04-13T09:22:33Z",
+      "resolved": "github:NixOS/nixpkgs/18dd725c29603f582cf1900e0d25f9f1063dbf11?lastModified=1744536153&narHash=sha256-awS2zRgF4uTwrOKwwiJcByDzDOdo3Q1rPZbiHQg%2FN38%3D"
+    },
+    "rye@latest": {
+      "last_modified": "2025-05-06T08:06:31Z",
+      "resolved": "github:NixOS/nixpkgs/1cb1c02a6b1b7cf67e3d7731cbbf327a53da9679#rye",
+      "source": "devbox-search",
+      "version": "0.44.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/nwmdk0ijdwnl1w4wq66zz4l2bw06a6sv-rye-0.44.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/nwmdk0ijdwnl1w4wq66zz4l2bw06a6sv-rye-0.44.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/yyjiw0d7m3z2grg3zl09n2ynflyz5x4b-rye-0.44.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/yyjiw0d7m3z2grg3zl09n2ynflyz5x4b-rye-0.44.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/hhkyniv63lzdi83wmzalxkkypjki7cgk-rye-0.44.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/hhkyniv63lzdi83wmzalxkkypjki7cgk-rye-0.44.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/4pgs2vmnivmf2zg57c9r3b29j6pakxkb-rye-0.44.0",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/4pgs2vmnivmf2zg57c9r3b29j6pakxkb-rye-0.44.0"
+        }
+      }
+    }
+  }
+}
