@@ -12,10 +12,20 @@
 -e file:.
 annotated-types==0.7.0
     # via pydantic
+click==8.2.0
+    # via typer
 dotenv==0.9.9
     # via resights-ownership-structure-calculator
 iniconfig==2.1.0
     # via pytest
+markdown-it-py==3.0.0
+    # via rich
+mdurl==0.1.2
+    # via markdown-it-py
+mypy==1.15.0
+    # via resights-ownership-structure-calculator
+mypy-extensions==1.1.0
+    # via mypy
 orjson==3.10.18
     # via resights-ownership-structure-calculator
 packaging==25.0
@@ -26,12 +36,23 @@ pydantic==2.11.4
     # via resights-ownership-structure-calculator
 pydantic-core==2.33.2
     # via pydantic
+pygments==2.19.1
+    # via rich
 pytest==8.3.5
 python-dotenv==1.1.0
     # via dotenv
+rich==14.0.0
+    # via typer
+ruff==0.11.9
+shellingham==1.5.4
+    # via typer
+typer==0.15.3
+    # via resights-ownership-structure-calculator
 typing-extensions==4.13.2
+    # via mypy
     # via pydantic
     # via pydantic-core
+    # via typer
     # via typing-inspection
 typing-inspection==0.4.0
     # via pydantic
