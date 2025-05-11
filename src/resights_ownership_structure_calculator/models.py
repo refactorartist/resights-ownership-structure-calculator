@@ -1,5 +1,5 @@
 from __future__ import annotations
-from pydantic import BaseModel, model_validator, Field
+from pydantic import BaseModel, ConfigDict, model_validator, Field
 
 from typing import Optional, List
 
@@ -14,6 +14,8 @@ class Entity(BaseModel):
     """
     id: str = Field(description="Unique identifier for the entity")
     name: str = Field(description="Name of the entity")
+
+    model_config = ConfigDict(frozen=True)
     
 
 
@@ -84,6 +86,10 @@ class OwnershipRelation(BaseModel):
         self.real_average_share = None
         self.real_upper_share = None
         return self
+    
+    def entities(self) -> List[Entity]:
+        """Return a list of entities in the ownership structure."""
+        return [Entity(id=str(self.source), name=self.source_name), Entity(id=str(self.target), name=self.target_name)]
 
 
 class OwnershipStructure(BaseModel):
@@ -111,3 +117,8 @@ class OwnershipStructure(BaseModel):
         """Calculate real shares for all relations in the ownership structure."""
         for relation in self.relations:
             relation.calculate_real_shares()
+
+    def entities(self) -> List[Entity]:
+        """Return a list of entities in the ownership structure."""
+        return list(set([entity for relation in self.relations for entity in relation.entities()]))
+

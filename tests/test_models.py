@@ -60,6 +60,16 @@ class TestEntity:
         assert entity.id == "12345"
         assert entity.name == "Test Entity"
 
+    def test_entity_equality(self):
+        entity1 = Entity(id="12345", name="Test Entity")
+        entity2 = Entity(id="12345", name="Test Entity")
+        entity3 = Entity(id="67890", name="Different Entity")
+        
+        assert entity1 == entity2
+        assert entity1 != entity3
+        assert hash(entity1) == hash(entity2)
+        assert hash(entity1) != hash(entity3)
+
 
 class TestOwnershipRelation:
     def test_ownership_relation_creation(self, sample_relation_data):
@@ -84,6 +94,16 @@ class TestOwnershipRelation:
         assert relation.real_lower_share == expected_lower
         assert relation.real_average_share == expected_avg
         assert relation.real_upper_share == expected_upper
+    
+    def test_entities_method(self, sample_relation_data):
+        relation = OwnershipRelation(**sample_relation_data)
+        entities = relation.entities()
+        
+        assert len(entities) == 2
+        assert entities[0].id == str(sample_relation_data["source"])
+        assert entities[0].name == sample_relation_data["source_name"]
+        assert entities[1].id == str(sample_relation_data["target"])
+        assert entities[1].name == sample_relation_data["target_name"]
 
 
 class TestOwnershipStructure:
@@ -128,3 +148,22 @@ class TestOwnershipStructure:
             assert structure.relations[i].real_lower_share == exp_lower
             assert structure.relations[i].real_average_share == exp_avg
             assert structure.relations[i].real_upper_share == exp_upper
+    
+    def test_entities_method(self, sample_relations_data):
+        structure = OwnershipStructure.from_json(sample_relations_data)
+        entities = structure.entities()
+        
+        # Should have 3 unique entities (2 sources and 1 target)
+        assert len(entities) == 3
+        
+        # Check that all expected entity IDs are present
+        entity_ids = {entity.id for entity in entities}
+        assert "12345" in entity_ids
+        assert "54321" in entity_ids
+        assert "67890" in entity_ids
+        
+        # Check entity names
+        entity_names = {entity.name for entity in entities}
+        assert "Source Company" in entity_names
+        assert "Another Source" in entity_names
+        assert "Target Company" in entity_names
