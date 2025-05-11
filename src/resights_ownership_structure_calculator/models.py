@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from typing import Optional, Set
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
-
+import networkx as nx
 
 class DataModel(BaseModel):
     ... 
@@ -33,6 +33,10 @@ class OwnershipRelationData(DataModel):
 
 class ProcessedModels(DataModel):
     model_config = ConfigDict(frozen=True)
+
+
+class AggregatedModels(DataModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class OwnershipNode(ProcessedModels): 
@@ -74,11 +78,38 @@ class OwnershipRelation(ProcessedModels):
     target: OwnershipNode = Field(description="Target entity (owned)")
     share: ShareRange = Field(description="Range of ownership percentages")
     active: bool = Field(description="Whether the ownership relation is currently active")
+    source_depth: int = Field(description="Depth level of the source entity in the ownership structure")
+    target_depth: int = Field(description="Depth level of the target entity in the ownership structure")
 
 
-class OwnershipGraph(ProcessedModels): 
+class OwnershipGraph(AggregatedModels): 
     nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
     relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
+
+    _graph: Optional[nx.DiGraph] = Field(default=None, description="NetworkX graph representation of the ownership structure")
+
+
+    @property 
+    def graph(self) -> nx.DiGraph:
+        if not self._graph: 
+            self._graph = nx.DiGraph()
+
+            for node in self.nodes: 
+                self._graph.add_node(node.id, name=node.name)
+
+            for relation in self.relations: 
+                self._graph.add_edge(
+                    relation.source.id,
+                    relation.target.id,
+                    id=relation.id,
+                    lower=relation.share.lower,
+                    average=relation.share.average,
+                    upper=relation.share.upper,
+                    source_depth=relation.source_depth,
+                    target_depth=relation.target_depth,
+                )
+
+        return self._graph
 
     @classmethod
     def from_relation_data(cls, relations_data: list[OwnershipRelationData]) -> "OwnershipGraph":
@@ -103,7 +134,9 @@ class OwnershipGraph(ProcessedModels):
                 source=source_node,
                 target=target_node,
                 share=share_range,
-                active=data.active
+                active=data.active,
+                source_depth=data.source_depth,
+                target_depth=data.target_depth
             )
             
             nodes.add(source_node)
@@ -111,3 +144,27 @@ class OwnershipGraph(ProcessedModels):
             relations.add(relation)
         
         return cls(nodes=nodes, relations=relations)
+
+    def get_focus_company(self) -> OwnershipNode:
+        """Get the focus company (company with depth = 0)."""
+        for relation in self.relations:
+            if relation.target_depth == 0:
+                return relation.target
+        raise ValueError("No focus company found (no node with depth = 0)")
+
+    def get_direct_owners(self, target: OwnershipNode) -> Set[OwnershipRelation]:
+        """Get all direct ownership relations where the given node is the target."""
+        return {rel for rel in self.relations if rel.target == target and rel.active}
+
+    def get_direct_owned(self, source: OwnershipNode) -> Set[OwnershipRelation]:
+        """Get all direct ownership relations where the given node is the source."""
+        return {rel for rel in self.relations if rel.source == source and rel.active}
+    
+
+    def get_all_owners(self, target: OwnershipNode) -> Set[OwnershipNode]:
+        """Get all owners of a given node."""
+        owners = set()
+        for relation in self.get_direct_owners(target):
+            owners.add(relation.source)
+        return owners
+
