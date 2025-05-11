@@ -30,8 +30,6 @@ class OwnershipRelationData(DataModel):
         return TypeAdapter(list[OwnershipRelationData]).validate_python(data)
 
 
-OwnershipRelationFile = TypeAdapter(list[OwnershipRelationData])
-
 
 class ProcessedModels(DataModel):
     model_config = ConfigDict(frozen=True)
@@ -46,7 +44,28 @@ class ShareRange(ProcessedModels):
     lower: float = Field(description="Lower bound of the ownership percentage")
     average: float = Field(description="Average ownership percentage")
     upper: float = Field(description="Upper bound of the ownership percentage")
-    share: str = Field(description="Original share string representation")
+
+    @classmethod
+    def from_share_string(cls, share: str) -> "ShareRange":
+        """Parse a share string and create a ShareRange instance.
+        
+        Examples:
+            "100%" -> lower=100, average=100, upper=100
+            "50-67%" -> lower=50, average=58.5, upper=67
+            "<5%" -> lower=0, average=2.5, upper=5
+        """
+        if share == "100%":
+            return cls(lower=100.0, average=100.0, upper=100.0)
+        
+        if share.startswith("<"):
+            upper = float(share[1:-1])
+            return cls(lower=0.0, average=upper/2, upper=upper)
+        
+        if "-" in share:
+            lower, upper = map(float, share[:-1].split("-"))
+            return cls(lower=lower, average=(lower + upper)/2, upper=upper)
+        
+        raise ValueError(f"Invalid share format: {share}")
 
 
 class OwnershipRelation(ProcessedModels): 
@@ -60,3 +79,35 @@ class OwnershipRelation(ProcessedModels):
 class OwnershipGraph(ProcessedModels): 
     nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
     relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
+
+    @classmethod
+    def from_relation_data(cls, relations_data: list[OwnershipRelationData]) -> "OwnershipGraph":
+        """Create an OwnershipGraph from a list of OwnershipRelationData objects.
+        
+        Args:
+            relations_data: List of ownership relation data objects
+            
+        Returns:
+            OwnershipGraph containing all nodes and relations from the data
+        """
+        nodes: Set[OwnershipNode] = set()
+        relations: Set[OwnershipRelation] = set()
+        
+        for data in relations_data:
+            source_node = OwnershipNode(id=str(data.source), name=data.source_name)
+            target_node = OwnershipNode(id=str(data.target), name=data.target_name)
+            share_range = ShareRange.from_share_string(data.share)
+            
+            relation = OwnershipRelation(
+                id=data.id,
+                source=source_node,
+                target=target_node,
+                share=share_range,
+                active=data.active
+            )
+            
+            nodes.add(source_node)
+            nodes.add(target_node)
+            relations.add(relation)
+        
+        return cls(nodes=nodes, relations=relations)
