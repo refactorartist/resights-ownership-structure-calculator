@@ -86,19 +86,18 @@ class OwnershipGraph(AggregatedModels):
     nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
     relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
 
-    _graph: Optional[nx.DiGraph] = Field(default=None, description="NetworkX graph representation of the ownership structure")
+    graph: Optional[nx.DiGraph] = Field(default=None, description="NetworkX graph representation of the ownership structure")
 
 
-    @property 
-    def graph(self) -> nx.DiGraph:
-        if not self._graph: 
-            self._graph = nx.DiGraph()
+    def get_graph(self) -> nx.DiGraph:
+        if not self.graph: 
+            self.graph = nx.DiGraph()
 
             for node in self.nodes: 
-                self._graph.add_node(node.id, name=node.name)
+                self.graph.add_node(node.id, name=node.name)
 
             for relation in self.relations: 
-                self._graph.add_edge(
+                self.graph.add_edge(
                     relation.source.id,
                     relation.target.id,
                     id=relation.id,
@@ -109,7 +108,7 @@ class OwnershipGraph(AggregatedModels):
                     target_depth=relation.target_depth,
                 )
 
-        return self._graph
+        return self.graph
 
     @classmethod
     def from_relation_data(cls, relations_data: list[OwnershipRelationData]) -> "OwnershipGraph":
