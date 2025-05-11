@@ -2,7 +2,11 @@ from typing import Optional, Set
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class OwnershipRelationData(BaseModel):
+class DataModel(BaseModel):
+    ... 
+
+
+class OwnershipRelationData(DataModel):
     id: str = Field(description="Unique identifier for the ownership relation")
     source: int = Field(description="ID of the source entity (owner)")
     source_name: str = Field(description="Name of the source entity")
@@ -17,34 +21,30 @@ class OwnershipRelationData(BaseModel):
     active: bool = Field(description="Whether the ownership relation is currently active")
 
 
-class OwnershipNode(BaseModel): 
-    id: str = Field(description="Unique identifier for the entity")
-    name: str = Field(description="Name of the entity")
-
+class ProcessedModels(DataModel):
     model_config = ConfigDict(frozen=True)
 
 
-class ShareRange(BaseModel): 
+class OwnershipNode(ProcessedModels): 
+    id: str = Field(description="Unique identifier for the entity")
+    name: str = Field(description="Name of the entity")
+
+
+class ShareRange(ProcessedModels): 
     lower: float = Field(description="Lower bound of the ownership percentage")
     average: float = Field(description="Average ownership percentage")
     upper: float = Field(description="Upper bound of the ownership percentage")
     share: str = Field(description="Original share string representation")
 
-    model_config = ConfigDict(frozen=True)
 
-
-class OwnershipRelation(BaseModel): 
+class OwnershipRelation(ProcessedModels): 
     id: str = Field(description="Unique identifier for the ownership relation")
     source: OwnershipNode = Field(description="Source entity (owner)")
     target: OwnershipNode = Field(description="Target entity (owned)")
     share: ShareRange = Field(description="Range of ownership percentages")
     active: bool = Field(description="Whether the ownership relation is currently active")
 
-    model_config = ConfigDict(frozen=True)
 
-
-class OwnershipGraph(BaseModel): 
+class OwnershipGraph(ProcessedModels): 
     nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
     relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
-
-    model_config = ConfigDict(frozen=True)
