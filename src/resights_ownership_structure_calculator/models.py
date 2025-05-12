@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+from pathlib import Path
 from typing import Optional, Set
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 import networkx as nx
@@ -43,7 +44,7 @@ class OwnershipRelationData(DataModel):
     active: bool = Field(description="Whether the ownership relation is currently active")
 
     @classmethod 
-    def load_from_file(cls, file_path: str) -> list["OwnershipRelationData"]:
+    def load_from_file(cls, file_path: Path) -> list["OwnershipRelationData"]:
         """Loads ownership relation data from a JSON file.
         
         Args:
@@ -375,14 +376,9 @@ class OwnershipGraph(GraphModels):
         upper = 100.0
 
         for ownership_relation in path: 
-            print(ownership_relation.source.name, "-->",  ownership_relation.target.name, (ownership_relation.share.lower, ownership_relation.share.average, ownership_relation.share.upper))
-
             lower *= ownership_relation.share.lower / 100.0
             average *= ownership_relation.share.average / 100.0
             upper *= ownership_relation.share.upper / 100.0
-
-            print("Ownership Percentage:", lower, average, upper)
-
 
         return ShareRange(lower=lower, average=average, upper=upper)
 
@@ -406,6 +402,7 @@ class OwnershipGraph(GraphModels):
         """
         graph = self.get_graph()
         
+        reversed_path = False
         
         # Check if there's a path from source to target
         if not nx.has_path(graph, source_node.id, target_node.id):
@@ -413,6 +410,7 @@ class OwnershipGraph(GraphModels):
             if nx.has_path(graph, target_node.id, source_node.id):
                 # Swap source and target nodes
                 source_node, target_node = target_node, source_node
+                reversed_path = True
             else:
                 raise ValueError(f"No ownership path between {source_node.name} and {target_node.name}")
         
@@ -437,8 +435,18 @@ class OwnershipGraph(GraphModels):
 
             ownership_path.append(relation) 
             
+        if reversed_path:
+            return self.reverse_ownership_path(ownership_path)
         
         return ownership_path
+    
+    @staticmethod
+    def reverse_ownership_path(ownership_path: list[OwnershipRelation]) -> list[OwnershipRelation]:
+        reversed_ownership_path = []
+        ownership_path.reverse()
+        for relation in ownership_path:
+            reversed_ownership_path.append(relation.model_copy(update={"source": relation.target, "target": relation.source}))
+        return reversed_ownership_path
     
 
     def get_owner_by_name(self, name: str) -> OwnershipNode:
