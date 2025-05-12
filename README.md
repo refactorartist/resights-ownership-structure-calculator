@@ -6,7 +6,7 @@ The Ownership Structure Calculator is a tool designed to calculate and analyze c
 
 ### Prerequisites
 
--   [Devbox](https://www.jetify.com/devbox/) - A command-line tool for creating isolated development environments.
+-   [Devbox](https://www.jetify.com/docs/devbox/installing_devbox/) - A command-line tool for creating isolated development environments.
 -   Git
 
 ### Setup Instructions
@@ -55,13 +55,13 @@ The tool provides several commands for analyzing ownership structures:
    rye run cli ownership calculate data/raw/CasaAS.json "DANSKE BANK A/S" --target "CASA A/S"
    
    # Calculate ownership path from a company to the focus company
-   rye run cli ownership calculate data/raw/CasaAS.json "CASA A/S"
+   rye run cli ownership calculate data/raw/CasaAS.json "DANSKE BANK A/S"
    ```
 
 2. **List All Owners**
    ```bash
    # List all owners of a specific company
-   rye run cli ownership list-all data/raw/CasaAS.json --target "CASA A/S"
+   rye run cli ownership list-all data/raw/CasaAS.json --target "CATACAP I K/S"
    
    # List all owners of the focus company
    rye run cli ownership list-all data/raw/CasaAS.json
@@ -70,7 +70,7 @@ The tool provides several commands for analyzing ownership structures:
 3. **List Direct Owners**
    ```bash
    # List direct owners of a specific company
-   rye run cli ownership list-owners data/raw/CasaAS.json --target "CASA A/S"
+   rye run cli ownership list-owners data/raw/CasaAS.json --target "CATACAP I K/S"
    
    # List direct owners of the focus company
    rye run cli ownership list-owners data/raw/CasaAS.json
@@ -79,7 +79,7 @@ The tool provides several commands for analyzing ownership structures:
 4. **List Owned Companies**
    ```bash
    # List companies owned by a specific company
-   rye run cli ownership list-owned data/raw/CasaAS.json --target "CASA A/S"
+   rye run cli ownership list-owned data/raw/CasaAS.json --target "CATACAP I K/S"
    
    # List companies owned by the focus company
    rye run cli ownership list-owned data/raw/CasaAS.json
@@ -93,7 +93,7 @@ The tool provides several commands for analyzing ownership structures:
    rye run cli validate file data/raw/CasaAS.json
    
    # Then analyze the ownership structure
-   rye run cli ownership calculate data/raw/CasaAS.json "DANSKE BANK A/S"
+   rye run cli ownership calculate data/raw/CasaAS.json "CATACAP I K/S"
    ```
 
 2. **Find All Owners of DANSKE BANK A/S**
