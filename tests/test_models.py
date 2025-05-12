@@ -1,189 +1,171 @@
 import pytest
 import json
-import tempfile
-from typing import List, Dict, Any
-from pydantic import TypeAdapter
+import networkx as nx
+from typing import List, Tuple, Any
+from pathlib import Path
 
 from resights_ownership_structure_calculator.models import (
     OwnershipRelationData,
-    OwnershipNode,
     ShareRange,
-    OwnershipRelation,
-    OwnershipGraph,
-    OwnershipRelationFile
+    OwnershipGraph
 )
 
 
-@pytest.fixture
-def sample_relation_data() -> Dict[str, Any]:
-    return {
-        "id": "36427426_29205272",
-        "source": 36427426,
-        "source_name": "CASA HOLDING A/S",
-        "source_depth": 1,
-        "target": 29205272,
-        "target_name": "CASA A/S",
-        "target_depth": 0,
-        "share": "100%",
-        "real_lower_share": 100.0,
-        "real_average_share": 100.0,
-        "real_upper_share": 100.0,
-        "active": False
-    }
-
-
-@pytest.fixture
-def sample_relations_data() -> List[Dict[str, Any]]:
-    return [
-        {
-            "id": "36427426_29205272",
-            "source": 36427426,
-            "source_name": "CASA HOLDING A/S",
-            "source_depth": 1,
-            "target": 29205272,
-            "target_name": "CASA A/S",
-            "target_depth": 0,
-            "share": "100%",
-            "real_lower_share": 100.0,
-            "real_average_share": 100.0,
-            "real_upper_share": 100.0,
-            "active": False
-        },
-        {
-            "id": "37577723_29205272",
-            "source": 37577723,
-            "source_name": "CC OSCAR HOLDING I A/S",
-            "source_depth": 1,
-            "target": 29205272,
-            "target_name": "CASA A/S",
-            "target_depth": 0,
-            "share": "100%",
-            "real_lower_share": 100.0,
-            "real_average_share": 100.0,
-            "real_upper_share": 100.0,
-            "active": True
-        }
-    ]
-
-
-class TestOwnershipRelationData:
-    def test_ownership_relation_data_creation(self, sample_relation_data: Dict[str, Any]) -> None:
-        relation_data = OwnershipRelationData(**sample_relation_data)
-        
-        assert relation_data.id == sample_relation_data["id"]
-        assert relation_data.source == sample_relation_data["source"]
-        assert relation_data.source_name == sample_relation_data["source_name"]
-        assert relation_data.source_depth == sample_relation_data["source_depth"]
-        assert relation_data.target == sample_relation_data["target"]
-        assert relation_data.target_name == sample_relation_data["target_name"]
-        assert relation_data.target_depth == sample_relation_data["target_depth"]
-        assert relation_data.share == sample_relation_data["share"]
-        assert relation_data.real_lower_share == sample_relation_data["real_lower_share"]
-        assert relation_data.real_average_share == sample_relation_data["real_average_share"]
-        assert relation_data.real_upper_share == sample_relation_data["real_upper_share"]
-        assert relation_data.active == sample_relation_data["active"]
-
-    @pytest.mark.parametrize("field,value", [
-        ("share", "50-67%"),
-        ("real_lower_share", 50.0),
-        ("real_average_share", 58.5),
-        ("real_upper_share", 67.0),
-        ("active", True)
-    ])
-    def test_ownership_relation_data_field_update(self, sample_relation_data: Dict[str, Any], field: str, value: Any) -> None:
-        sample_relation_data[field] = value
-        relation_data = OwnershipRelationData(**sample_relation_data)
-        assert getattr(relation_data, field) == value
-    
-    def test_load_from_file(self, sample_relations_data: List[Dict[str, Any]]) -> None:
-        with tempfile.NamedTemporaryFile(mode='w+', suffix='.json') as temp_file:
-            json.dump(sample_relations_data, temp_file)
-            temp_file.flush()
-            
-            loaded_data = OwnershipRelationData.load_from_file(temp_file.name)
-            
-            assert len(loaded_data) == len(sample_relations_data)
-            assert loaded_data[0].id == sample_relations_data[0]["id"]
-            assert loaded_data[1].id == sample_relations_data[1]["id"]
-
-
-class TestOwnershipNode:
-    def test_ownership_node_creation(self) -> None:
-        node = OwnershipNode(id="29205272", name="CASA A/S")
-        assert node.id == "29205272"
-        assert node.name == "CASA A/S"
-    
-    def test_ownership_node_immutability(self) -> None:
-        node = OwnershipNode(id="29205272", name="CASA A/S")
-        with pytest.raises(Exception):
-            node.id = "new_id"
-
-
 class TestShareRange:
-    @pytest.mark.parametrize("lower,average,upper,share", [
-        (100.0, 100.0, 100.0, "100%"),
-        (50.0, 58.5, 67.0, "50-67%"),
-        (10.0, 12.5, 15.0, "10-15%")
+    @pytest.mark.parametrize("share_string, expected", [
+        ("100%", (100.0, 100.0, 100.0)),
+        ("50-67%", (50.0, 58.5, 67.0)),
+        ("<5%", (0.0, 2.5, 5.0)),
     ])
-    def test_share_range_creation(self, lower: float, average: float, upper: float, share: str) -> None:
-        share_range = ShareRange(lower=lower, average=average, upper=upper, share=share)
-        assert share_range.lower == lower
-        assert share_range.average == average
-        assert share_range.upper == upper
-        assert share_range.share == share
+    def test_from_share_string(self, share_string: str, expected: Tuple[float, float, float]) -> None:
+        """Test parsing different share string formats."""
+        share_range = ShareRange.from_share_string(share_string)
+        assert share_range.lower == expected[0]
+        assert share_range.average == expected[1]
+        assert share_range.upper == expected[2]
 
-
-class TestOwnershipRelation:
-    def test_ownership_relation_creation(self) -> None:
-        source = OwnershipNode(id="36427426", name="CASA HOLDING A/S")
-        target = OwnershipNode(id="29205272", name="CASA A/S")
-        share_range = ShareRange(lower=100.0, average=100.0, upper=100.0, share="100%")
-        
-        relation = OwnershipRelation(
-            id="36427426_29205272",
-            source=source,
-            target=target,
-            share=share_range,
-            active=False
-        )
-        
-        assert relation.id == "36427426_29205272"
-        assert relation.source == source
-        assert relation.target == target
-        assert relation.share == share_range
-        assert relation.active is False
+    def test_invalid_share_string(self) -> None:
+        """Test that invalid share strings raise ValueError."""
+        with pytest.raises(ValueError):
+            ShareRange.from_share_string("invalid")
 
 
 class TestOwnershipGraph:
-    def test_ownership_graph_creation(self) -> None:
-        node1 = OwnershipNode(id="36427426", name="CASA HOLDING A/S")
-        node2 = OwnershipNode(id="29205272", name="CASA A/S")
-        share_range = ShareRange(lower=100.0, average=100.0, upper=100.0, share="100%")
+    def test_from_relation_data(self, sample_relation_data: List[OwnershipRelationData]) -> None:
+        """Test creating an OwnershipGraph from relation data."""
+        graph = OwnershipGraph.from_relation_data(sample_relation_data)
         
-        relation = OwnershipRelation(
-            id="36427426_29205272",
-            source=node1,
-            target=node2,
-            share=share_range,
-            active=False
-        )
+        # Check that all nodes were created
+        assert len(graph.nodes) == 4
+        assert "1" in graph.nodes
+        assert "2" in graph.nodes
+        assert "3" in graph.nodes
+        assert "4" in graph.nodes
         
-        graph = OwnershipGraph(nodes={node1, node2}, relations={relation})
+        # Check that all relations were created
+        assert len(graph.relations) == 3
+        assert "1_2" in graph.relations
+        assert "3_2" in graph.relations
+        assert "4_3" in graph.relations
+
+    def test_get_graph(self, ownership_graph: OwnershipGraph) -> None:
+        """Test that get_graph returns a valid NetworkX DiGraph."""
+        graph = ownership_graph.get_graph()
+        assert isinstance(graph, nx.DiGraph)
+        assert len(graph.nodes) == 4
+        assert len(graph.edges) == 3
         
-        assert len(graph.nodes) == 2
-        assert node1 in graph.nodes
-        assert node2 in graph.nodes
-        assert len(graph.relations) == 1
-        assert relation in graph.relations
-    
-    def test_ownership_graph_immutability(self) -> None:
-        graph = OwnershipGraph(nodes=set(), relations=set())
-        with pytest.raises(Exception):
-            graph.nodes = {OwnershipNode(id="test", name="test")}
+        # Check edge attributes
+        edge_1_2 = graph.get_edge_data("1", "2")
+        assert edge_1_2["id"] == "1_2"
+        assert edge_1_2["lower"] == 100.0
+        assert edge_1_2["active"] is True
+
+    def test_get_focus_company(self, ownership_graph: OwnershipGraph) -> None:
+        """Test getting the focus company (depth=0)."""
+        focus = ownership_graph.get_focus_company()
+        assert focus.name == "Company B"
+        assert focus.id == "2"
+
+    def test_get_direct_owners(self, ownership_graph: OwnershipGraph) -> None:
+        """Test getting direct owners of a node."""
+        focus = ownership_graph.get_focus_company()
+        direct_owners = ownership_graph.get_direct_owners(focus)
+        
+        assert len(direct_owners) == 2
+        owner_names = {relation.source.name for relation in direct_owners}
+        assert "Company A" in owner_names
+        assert "Company C" in owner_names
+
+    def test_get_direct_owned(self, ownership_graph: OwnershipGraph) -> None:
+        """Test getting entities directly owned by a node."""
+        company_c = ownership_graph.get_owner_by_name("Company C")
+        direct_owned = ownership_graph.get_direct_owned(company_c)
+        
+        assert len(direct_owned) == 1
+        assert next(iter(direct_owned)).target.name == "Company B"
+
+    def test_get_all_owners(self, ownership_graph: OwnershipGraph) -> None:
+        """Test getting all owners of a node, including indirect owners."""
+        focus = ownership_graph.get_focus_company()
+        all_owners = ownership_graph.get_all_owners(focus)
+        
+        assert len(all_owners) == 3
+        owner_names = {owner.name for owner in all_owners}
+        assert "Company A" in owner_names
+        assert "Company C" in owner_names
+        assert "Company D" in owner_names
+
+    def test_get_ownership_path(self, ownership_graph: OwnershipGraph) -> None:
+        """Test getting the ownership path between two nodes."""
+        company_d = ownership_graph.get_owner_by_name("Company D")
+        company_b = ownership_graph.get_owner_by_name("Company B")
+        
+        path = ownership_graph.get_ownership_path(company_d, company_b)
+        
+        assert len(path) == 2
+        assert path[0].source.name == "Company D"
+        assert path[0].target.name == "Company C"
+        assert path[1].source.name == "Company C"
+        assert path[1].target.name == "Company B"
+
+    def test_get_owner_by_name(self, ownership_graph: OwnershipGraph) -> None:
+        """Test finding a node by name."""
+        node = ownership_graph.get_owner_by_name("Company A")
+        assert node.id == "1"
+        
+        with pytest.raises(ValueError):
+            ownership_graph.get_owner_by_name("Nonexistent Company")
+
+    def test_get_real_ownership(self, ownership_graph: OwnershipGraph, monkeypatch: Any) -> None:
+        """Test calculating real ownership percentages along a path."""
+        # Mock print to avoid output during tests
+        monkeypatch.setattr("builtins.print", lambda *args, **kwargs: None)
+        
+        company_d = ownership_graph.get_owner_by_name("Company D")
+        company_b = ownership_graph.get_owner_by_name("Company B")
+        
+        share_range = ownership_graph.get_real_ownership(company_d, company_b)
+        
+        # D owns <5% of C, which owns 50-67% of B
+        # So D's real ownership in B should be:
+        # Lower: 0 * 50 / 100 = 0
+        # Average: 2.5 * 58.5 / 100 = 1.4625
+        # Upper: 5 * 67 / 100 = 3.35
+        assert share_range.lower == 0.0
+        assert pytest.approx(share_range.average, 0.001) == 1.4625
+        assert pytest.approx(share_range.upper, 0.001) == 3.35
 
 
-class TestOwnershipRelationFile:
-    def test_validate_json(self, sample_relations_data: List[Dict[str, Any]]) -> None:
-        validated_data = TypeAdapter(list[OwnershipRelationData]).validate_python(sample_relations_data)
-        assert len(validated_data) == len(sample_relations_data)
-        assert all(isinstance(item, OwnershipRelationData) for item in validated_data)
+class TestOwnershipRelationData:
+    def test_load_from_file(self, tmp_path: Path) -> None:
+        """Test loading relation data from a JSON file."""
+        # Create a temporary JSON file
+        data = [
+            {
+                "id": "1_2",
+                "source": 1,
+                "source_name": "Company A",
+                "source_depth": 1,
+                "target": 2,
+                "target_name": "Company B",
+                "target_depth": 0,
+                "share": "100%",
+                "real_lower_share": None,
+                "real_average_share": None,
+                "real_upper_share": None,
+                "active": True
+            }
+        ]
+        
+        file_path = tmp_path / "test_data.json"
+        with open(file_path, "w") as f:
+            json.dump(data, f)
+        
+        # Load the data
+        relations = OwnershipRelationData.load_from_file(str(file_path))
+        
+        assert len(relations) == 1
+        assert relations[0].id == "1_2"
+        assert relations[0].source_name == "Company A"
+        assert relations[0].target_name == "Company B"
