@@ -3,11 +3,12 @@
   "packages": ["rye@latest"],
   "shell": {
     "init_hook": [
-      "echo 'Welcome to devbox!' > /dev/null"
+      "echo 'Welcome to devbox!' > /dev/null",
+      "rye sync"
     ],
     "scripts": {
       "tests": [
-        "rye run pytest -vv"
+        "rye test -- -vv"
       ]
     }
   }
