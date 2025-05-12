@@ -35,8 +35,13 @@ class ProcessedModels(DataModel):
     model_config = ConfigDict(frozen=True)
 
 
-class AggregatedModels(DataModel):
+class GraphModels(DataModel):
+    graph: Optional[nx.DiGraph] = Field(default=None, description="NetworkX graph representation of the ownership structure")
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    def get_graph(self) -> nx.DiGraph:
+        raise NotImplementedError("Subclasses must implement this method")
 
 
 class OwnershipNode(ProcessedModels): 
@@ -82,7 +87,8 @@ class OwnershipRelation(ProcessedModels):
     target_depth: int = Field(description="Depth level of the target entity in the ownership structure")
 
 
-class OwnershipGraph(AggregatedModels): 
+
+class OwnershipGraph(GraphModels): 
     nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
     relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
 
@@ -90,23 +96,29 @@ class OwnershipGraph(AggregatedModels):
 
 
     def get_graph(self) -> nx.DiGraph:
-        if not self.graph: 
-            self.graph = nx.DiGraph()
+        if self.nodes is None or self.relations is None: 
+            raise ValueError("Nodes and relations must be set before getting the graph")
 
-            for node in self.nodes: 
-                self.graph.add_node(node.id, name=node.name)
+        if self.graph is not None: 
+            return self.graph
 
-            for relation in self.relations: 
-                self.graph.add_edge(
-                    relation.source.id,
-                    relation.target.id,
-                    id=relation.id,
-                    lower=relation.share.lower,
-                    average=relation.share.average,
-                    upper=relation.share.upper,
-                    source_depth=relation.source_depth,
-                    target_depth=relation.target_depth,
-                )
+        self.graph = nx.DiGraph()
+
+        for node in self.nodes: 
+            self.graph.add_node(node.id, name=node.name)
+
+        for relation in self.relations: 
+            self.graph.add_edge(
+                relation.source.id,
+                relation.target.id,
+                id=relation.id,
+                lower=relation.share.lower,
+                average=relation.share.average,
+                upper=relation.share.upper,
+                source_depth=relation.source_depth,
+                target_depth=relation.target_depth,
+                active=relation.active,
+            )
 
         return self.graph
 
@@ -143,12 +155,28 @@ class OwnershipGraph(AggregatedModels):
             relations.add(relation)
         
         return cls(nodes=nodes, relations=relations)
-
+    
     def get_focus_company(self) -> OwnershipNode:
-        """Get the focus company (company with depth = 0)."""
         for relation in self.relations:
             if relation.target_depth == 0:
-                return relation.target
+                return relation.target   
+
+        raise ValueError("No focus company found (no node with depth = 0)")
+
+    def get_focus_company_via_graph(self) -> OwnershipNode:
+        """Get the focus company (company with depth = 0)."""
+        graph: nx.DiGraph = self.get_graph()
+        
+        # Find nodes with target_depth = 0 using graph attributes
+        for node_id, node_attrs in graph.nodes(data=True):
+            # Check edges where this node is a target
+            for source_id, target_id, edge_attrs in graph.in_edges(node_id, data=True):
+                if edge_attrs.get('target_depth') == 0:
+                    # Find the corresponding node from our nodes set
+                    for node in self.nodes:
+                        if node.id == node_id:
+                            return node
+        
         raise ValueError("No focus company found (no node with depth = 0)")
 
     def get_direct_owners(self, target: OwnershipNode) -> Set[OwnershipRelation]:
@@ -205,4 +233,88 @@ class OwnershipGraph(AggregatedModels):
                     break
         
         return owners
+
+    def get_real_ownership(self, node: OwnershipNode) -> ShareRange:
+        """Calculate the real ownership percentage of a node in the focus company.
+        
+        This method finds a path from the given node to the focus company and
+        calculates the effective ownership percentage along that path.
+        """
+        graph = self.get_graph()
+        focus_company = self.get_focus_company()
+        
+        # Check if there's a path from node to focus company
+        if not nx.has_path(graph, node.id, focus_company.id):
+            raise ValueError(f"No ownership path from {node.name} to {focus_company.name}")
+        
+        # Get the shortest path from node to focus company
+        path = nx.shortest_path(graph, node.id, focus_company.id)
+        
+        # Initialize with 100% ownership
+
+        lower = 100.0
+        average = 100.0
+        upper = 100.0
+
+       
+        # Calculate ownership along the path
+        for i in range(len(path) - 1):
+            source_id = path[i]
+            target_id = path[i + 1]
+            edge_data = graph.get_edge_data(source_id, target_id)
+            
+            # Multiply by the ownership percentage at each step
+            lower *= edge_data['lower'] / 100.0
+            average *= edge_data['average'] / 100.0
+            upper *= edge_data['upper'] / 100.0
+        
+        return ShareRange(lower=lower, average=average, upper=upper)
+    
+
+    def get_ownership_path(self, node: OwnershipNode) -> list[OwnershipRelation]:
+        """Calculate the real ownership percentage of a node in the focus company.
+        
+        This method finds a path from the given node to the focus company and
+        calculates the effective ownership percentage along that path.
+        """
+        graph = self.get_graph()
+        focus_company = self.get_focus_company()
+        
+        # Check if there's a path from node to focus company
+        if not nx.has_path(graph, node.id, focus_company.id):
+            raise ValueError(f"No ownership path from {node.name} to {focus_company.name}")
+        
+        # Get the shortest path from node to focus company
+        path = nx.shortest_path(graph, node.id, focus_company.id)
+
+        ownership_path: list[OwnershipRelation] = []
+        
+        # Calculate ownership along the path
+        for i in range(len(path) - 1):
+            source_id = path[i]
+            target_id = path[i + 1]
+            edge_data = graph.get_edge_data(source_id, target_id)
+            
+            ownership_path.append(OwnershipRelation(
+                id=edge_data['id'],
+                source=OwnershipNode(id=source_id, name=graph.nodes[source_id]['name']),
+                target=OwnershipNode(id=target_id, name=graph.nodes[target_id]['name']),
+                share=ShareRange(lower=edge_data['lower'], average=edge_data['average'], upper=edge_data['upper']),
+                active=edge_data['active'],
+                source_depth=edge_data['source_depth'],
+                target_depth=edge_data['target_depth'],
+            ))
+        
+        return ownership_path
+    
+
+    def get_owner_by_name(self, name: str) -> OwnershipNode:
+        """Get the ownership structure of a given node."""
+        for node in self.nodes:
+            if node.name == name:
+                return node
+        raise ValueError(f"No node found with name: {name}")
+        
+        
+
 
