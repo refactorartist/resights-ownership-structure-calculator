@@ -301,7 +301,7 @@ class OwnershipGraph(GraphModels):
 
             relation = self.relations.get(edge_data['id'])
 
-            if not relation: 
+            if not relation or not relation.active: 
                 continue 
 
             relations.add(relation)
@@ -327,7 +327,7 @@ class OwnershipGraph(GraphModels):
 
             relation = self.relations.get(edge_data['id'])
 
-            if not relation: 
+            if not relation or not relation.active: 
                 continue 
 
             relations.add(relation)
