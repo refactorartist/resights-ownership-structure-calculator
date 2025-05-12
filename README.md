@@ -53,7 +53,9 @@ The tool provides several commands for analyzing ownership structures:
    ```bash
    # Calculate ownership path between two companies
    rye run cli ownership calculate data/raw/CasaAS.json "DANSKE BANK A/S" --target "CASA A/S"
+   ```
    
+   ```bash
    # Calculate ownership path from a company to the focus company
    rye run cli ownership calculate data/raw/CasaAS.json "DANSKE BANK A/S"
    ```
@@ -62,7 +64,9 @@ The tool provides several commands for analyzing ownership structures:
    ```bash
    # List all owners of a specific company
    rye run cli ownership list-all data/raw/CasaAS.json --target "CATACAP I K/S"
+   ```
    
+   ```bash
    # List all owners of the focus company
    rye run cli ownership list-all data/raw/CasaAS.json
    ```
@@ -71,7 +75,9 @@ The tool provides several commands for analyzing ownership structures:
    ```bash
    # List direct owners of a specific company
    rye run cli ownership list-owners data/raw/CasaAS.json --target "CATACAP I K/S"
+   ```
    
+   ```bash
    # List direct owners of the focus company
    rye run cli ownership list-owners data/raw/CasaAS.json
    ```
@@ -80,7 +86,9 @@ The tool provides several commands for analyzing ownership structures:
    ```bash
    # List companies owned by a specific company
    rye run cli ownership list-owned data/raw/CasaAS.json --target "CATACAP I K/S"
+   ```
    
+   ```bash
    # List companies owned by the focus company
    rye run cli ownership list-owned data/raw/CasaAS.json
    ```
@@ -91,7 +99,9 @@ The tool provides several commands for analyzing ownership structures:
    ```bash
    # First validate the data file
    rye run cli validate file data/raw/CasaAS.json
+   ```
    
+   ```bash
    # Then analyze the ownership structure
    rye run cli ownership calculate data/raw/CasaAS.json "CATACAP I K/S"
    ```
