@@ -29,7 +29,7 @@ def calculate(
         None,
         "--target",
         "-t",
-        help="The target company to calculate the ownership structure for; if no target is provided the focus company will be used",
+        help="The target company to calculate the ownership relations for; if no target is provided the focus company will be used",
     ),
 ) -> None:
     try:
@@ -77,3 +77,117 @@ def calculate(
         typer.echo(f"File Validation Error: {e}")
         raise typer.Abort()
     
+
+@app.command() 
+def list_all(
+    path: str = typer.Argument(
+        ..., help="The file to calculate the ownership structure from"
+    ),
+    target: str = typer.Option(
+        None,
+        "--target",
+        "-t",
+        help="The target company to get all owners for; if no target is provided the focus company will be used",
+    ),
+) -> None:
+    try:
+        file_path = Path(path)
+        validate_file(file_path)
+
+        data = OwnershipRelationData.load_from_file(file_path)
+        graph = OwnershipGraph.from_relation_data(data)
+
+        target_company = (
+            graph.get_owner_by_name(target) if target else graph.get_focus_company()
+        )
+
+        owners = graph.get_all_owners(target_company)
+
+        typer.echo(f"Owners of {target_company.name}:")
+
+        for owner in owners:
+            typer.echo(f" - {owner.name}")
+
+        typer.echo(f"Total owners: {len(owners)}")
+
+        
+    except FileValidationError as e:
+        typer.echo(f"File Validation Error: {e}")
+        raise typer.Abort()
+
+
+@app.command() 
+def list_owned(
+    path: str = typer.Argument(
+        ..., help="The file to calculate the ownership structure from"
+    ),
+    target: str = typer.Option(
+        None,
+        "--target",
+        "-t",
+        help="The target company to get all owners for; if no target is provided the focus company will be used",
+    ),
+) -> None:
+    try:
+        file_path = Path(path)
+        validate_file(file_path)
+
+        data = OwnershipRelationData.load_from_file(file_path)
+        graph = OwnershipGraph.from_relation_data(data)
+
+        target_company = (
+            graph.get_owner_by_name(target) if target else graph.get_focus_company()
+        )   
+
+        owned = graph.get_direct_owned(target_company)
+
+        typer.echo(f"Owned by {target_company.name}:")
+
+        for relation in owned:
+            typer.echo(f" - {relation.target.name}")
+
+        typer.echo(f"Total owned: {len(owned)}")
+
+        
+    except FileValidationError as e:
+        typer.echo(f"File Validation Error: {e}")
+        raise typer.Abort()
+
+
+
+@app.command() 
+def list_owners(
+    path: str = typer.Argument(
+        ..., help="The file to calculate the ownership structure from"
+    ),
+    target: str = typer.Option(
+        None,
+        "--target",
+        "-t",
+        help="The target company to get all owners for; if no target is provided the focus company will be used",
+    ),
+) -> None:
+    try:
+        file_path = Path(path)
+        validate_file(file_path)
+
+        data = OwnershipRelationData.load_from_file(file_path)
+        graph = OwnershipGraph.from_relation_data(data)
+
+        target_company = (
+            graph.get_owner_by_name(target) if target else graph.get_focus_company()
+        )   
+
+        owners = graph.get_direct_owners(target_company)
+
+        typer.echo(f"Owners of {target_company.name}:")
+
+        for relation in owners:
+            typer.echo(f" - {relation.source.name}")
+
+        typer.echo(f"Total owners: {len(owners)}")
+
+        
+    except FileValidationError as e:
+        typer.echo(f"File Validation Error: {e}")
+        raise typer.Abort()
