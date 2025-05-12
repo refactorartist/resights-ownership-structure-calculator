@@ -10,6 +10,25 @@ class DataModel(BaseModel):
 
 
 class OwnershipRelationData(DataModel):
+    """Represents ownership relation data between entities.
+    
+    This class stores information about ownership relationships between entities,
+    including identifiers, names, ownership shares, and relationship status.
+    
+    Attributes:
+        id: Unique identifier for the ownership relation
+        source: ID of the source entity (owner)
+        source_name: Name of the source entity
+        source_depth: Depth level of the source entity in the ownership structure
+        target: ID of the target entity (owned)
+        target_name: Name of the target entity
+        target_depth: Depth level of the target entity in the ownership structure
+        share: Ownership share as a string (e.g. '100%', '10-15%')
+        real_lower_share: Lower bound of the ownership percentage
+        real_average_share: Average ownership percentage
+        real_upper_share: Upper bound of the ownership percentage
+        active: Whether the ownership relation is currently active
+    """
     id: str = Field(description="Unique identifier for the ownership relation")
     source: int = Field(description="ID of the source entity (owner)")
     source_name: str = Field(description="Name of the source entity")
@@ -25,6 +44,14 @@ class OwnershipRelationData(DataModel):
 
     @classmethod 
     def load_from_file(cls, file_path: str) -> list["OwnershipRelationData"]:
+        """Loads ownership relation data from a JSON file.
+        
+        Args:
+            file_path: Path to the JSON file containing ownership relation data
+            
+        Returns:
+            A list of OwnershipRelationData objects
+        """
         with open(file_path, "r") as f:
             data = json.load(f)
         return TypeAdapter(list[OwnershipRelationData]).validate_python(data)
@@ -32,24 +59,51 @@ class OwnershipRelationData(DataModel):
 
 
 class ProcessedModels(DataModel):
+    """Base class for processed data models with frozen configuration."""
     model_config = ConfigDict(frozen=True)
 
 
 class GraphModels(DataModel):
+    """Base class for graph-based data models.
+    
+    Attributes:
+        graph: NetworkX graph representation of the ownership structure
+    """
     graph: Optional[nx.DiGraph] = Field(default=None, description="NetworkX graph representation of the ownership structure")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def get_graph(self) -> nx.DiGraph:
+        """Returns the graph representation.
+        
+        Returns:
+            A NetworkX directed graph
+            
+        Raises:
+            NotImplementedError: If not implemented by subclasses
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
 
 class OwnershipNode(ProcessedModels): 
+    """Represents an entity in the ownership structure.
+    
+    Attributes:
+        id: Unique identifier for the entity
+        name: Name of the entity
+    """
     id: str = Field(description="Unique identifier for the entity")
     name: str = Field(description="Name of the entity")
 
 
 class ShareRange(ProcessedModels): 
+    """Represents a range of ownership percentages.
+    
+    Attributes:
+        lower: Lower bound of the ownership percentage
+        average: Average ownership percentage
+        upper: Upper bound of the ownership percentage
+    """
     lower: float = Field(description="Lower bound of the ownership percentage")
     average: float = Field(description="Average ownership percentage")
     upper: float = Field(description="Upper bound of the ownership percentage")
@@ -62,6 +116,15 @@ class ShareRange(ProcessedModels):
             "100%" -> lower=100, average=100, upper=100
             "50-67%" -> lower=50, average=58.5, upper=67
             "<5%" -> lower=0, average=2.5, upper=5
+            
+        Args:
+            share: A string representing an ownership share
+            
+        Returns:
+            A ShareRange instance with parsed values
+            
+        Raises:
+            ValueError: If the share string format is invalid
         """
         if share == "100%":
             return cls(lower=100.0, average=100.0, upper=100.0)
@@ -78,6 +141,17 @@ class ShareRange(ProcessedModels):
 
 
 class OwnershipRelation(ProcessedModels): 
+    """Represents an ownership relationship between two entities.
+    
+    Attributes:
+        id: Unique identifier for the ownership relation
+        source: Source entity (owner)
+        target: Target entity (owned)
+        share: Range of ownership percentages
+        active: Whether the ownership relation is currently active
+        source_depth: Depth level of the source entity in the ownership structure
+        target_depth: Depth level of the target entity in the ownership structure
+    """
     id: str = Field(description="Unique identifier for the ownership relation")
     source: OwnershipNode = Field(description="Source entity (owner)")
     target: OwnershipNode = Field(description="Target entity (owned)")
@@ -89,6 +163,13 @@ class OwnershipRelation(ProcessedModels):
 
 
 class OwnershipGraph(GraphModels): 
+    """Represents the complete ownership structure as a graph.
+    
+    Attributes:
+        nodes: HashMap of all entities in the ownership structure
+        relations: HashMap of all ownership relations between entities
+        graph: NetworkX graph representation of the ownership structure
+    """
     nodes: dict[str, OwnershipNode] = Field(description="HashMap of all entities in the ownership structure")
     relations: dict[str, OwnershipRelation] = Field(description="HashMap of all ownership relations between entities")
 
@@ -96,6 +177,14 @@ class OwnershipGraph(GraphModels):
 
 
     def get_graph(self) -> nx.DiGraph:
+        """Creates or returns the NetworkX graph representation.
+        
+        Returns:
+            A NetworkX directed graph representing the ownership structure
+            
+        Raises:
+            ValueError: If nodes and relations are not set
+        """
         if self.nodes is None or self.relations is None: 
             raise ValueError("Nodes and relations must be set before getting the graph")
 
@@ -157,6 +246,14 @@ class OwnershipGraph(GraphModels):
         return cls(nodes=nodes, relations=relations)
     
     def get_focus_company(self) -> OwnershipNode:
+        """Gets the focus company (company with depth = 0).
+        
+        Returns:
+            The focus company node
+            
+        Raises:
+            ValueError: If no focus company is found
+        """
         for relation in self.relations.values():
             if relation.target_depth == 0:
                 return relation.target   
@@ -164,7 +261,14 @@ class OwnershipGraph(GraphModels):
         raise ValueError("No focus company found (no node with depth = 0)")
 
     def get_focus_company_via_graph(self) -> OwnershipNode:
-        """Get the focus company (company with depth = 0)."""
+        """Gets the focus company (company with depth = 0) using graph attributes.
+        
+        Returns:
+            The focus company node
+            
+        Raises:
+            ValueError: If no focus company is found
+        """
         graph: nx.DiGraph = self.get_graph()
         
         # Find nodes with target_depth = 0 using graph attributes
@@ -179,7 +283,14 @@ class OwnershipGraph(GraphModels):
         raise ValueError("No focus company found (no node with depth = 0)")
 
     def get_direct_owners(self, target: OwnershipNode) -> Set[OwnershipRelation]:
-        """Get all direct ownership relations where the given node is the target."""
+        """Gets all direct ownership relations where the given node is the target.
+        
+        Args:
+            target: The target node to find owners for
+            
+        Returns:
+            A set of ownership relations where the given node is directly owned
+        """
         graph = self.get_graph()
         relations = set()
 
@@ -198,7 +309,14 @@ class OwnershipGraph(GraphModels):
         return relations
 
     def get_direct_owned(self, source: OwnershipNode) -> Set[OwnershipRelation]:
-        """Get all direct ownership relations where the given node is the source."""
+        """Gets all direct ownership relations where the given node is the source.
+        
+        Args:
+            source: The source node to find owned entities for
+            
+        Returns:
+            A set of ownership relations where the given node is the direct owner
+        """
         graph = self.get_graph()
         relations = set()
         
@@ -216,7 +334,14 @@ class OwnershipGraph(GraphModels):
     
 
     def get_all_owners(self, target: OwnershipNode) -> Set[OwnershipNode]:
-        """Get all owners of a given node, including indirect owners."""
+        """Gets all owners of a given node, including indirect owners.
+        
+        Args:
+            target: The target node to find all owners for
+            
+        Returns:
+            A set of all owner nodes that can reach the target node
+        """
         graph = self.get_graph()
         owners = set()
         
@@ -232,12 +357,18 @@ class OwnershipGraph(GraphModels):
         return owners
 
     def get_real_ownership(self, source_node: OwnershipNode, target_node: OwnershipNode) -> ShareRange:
-        """Calculate the real ownership percentage of a node in the focus company.
+        """Calculates the real ownership percentage of a node in the target company.
         
-        This method finds a path from the given node to the focus company and
+        This method finds a path from the given source node to the target node and
         calculates the effective ownership percentage along that path.
+        
+        Args:
+            source_node: The source node (owner)
+            target_node: The target node (owned)
+            
+        Returns:
+            A ShareRange representing the effective ownership percentage
         """
-
         path = self.get_ownership_path(source_node, target_node)
         lower = 100.0
         average = 100.0
@@ -258,10 +389,20 @@ class OwnershipGraph(GraphModels):
     
 
     def get_ownership_path(self, source_node: OwnershipNode, target_node: OwnershipNode) -> list[OwnershipRelation]:
-        """Calculate the real ownership percentage of a node in the focus company.
+        """Finds the ownership path between two nodes.
         
-        This method finds a path from the given node to the focus company and
-        calculates the effective ownership percentage along that path.
+        This method finds the shortest path from the source node to the target node
+        in the ownership graph.
+        
+        Args:
+            source_node: The source node (owner)
+            target_node: The target node (owned)
+            
+        Returns:
+            A list of ownership relations representing the path
+            
+        Raises:
+            ValueError: If no ownership path exists between the nodes
         """
         graph = self.get_graph()
         
@@ -301,12 +442,18 @@ class OwnershipGraph(GraphModels):
     
 
     def get_owner_by_name(self, name: str) -> OwnershipNode:
-        """Get the ownership structure of a given node."""
+        """Gets an ownership node by its name.
+        
+        Args:
+            name: The name of the node to find
+            
+        Returns:
+            The ownership node with the given name
+            
+        Raises:
+            ValueError: If no node with the given name is found
+        """
         for node in self.nodes.values():
             if node.name == name:
                 return node
         raise ValueError(f"No node found with name: {name}")
-        
-        
-
-
