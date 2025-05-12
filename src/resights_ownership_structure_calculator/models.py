@@ -89,8 +89,8 @@ class OwnershipRelation(ProcessedModels):
 
 
 class OwnershipGraph(GraphModels): 
-    nodes: Set[OwnershipNode] = Field(description="Set of all entities in the ownership structure")
-    relations: Set[OwnershipRelation] = Field(description="Set of all ownership relations between entities")
+    nodes: dict[str, OwnershipNode] = Field(description="HashMap of all entities in the ownership structure")
+    relations: dict[str, OwnershipRelation] = Field(description="HashMap of all ownership relations between entities")
 
     graph: Optional[nx.DiGraph] = Field(default=None, description="NetworkX graph representation of the ownership structure")
 
@@ -104,10 +104,10 @@ class OwnershipGraph(GraphModels):
 
         self.graph = nx.DiGraph()
 
-        for node in self.nodes: 
+        for node in self.nodes.values(): 
             self.graph.add_node(node.id, name=node.name)
 
-        for relation in self.relations: 
+        for relation in self.relations.values(): 
             self.graph.add_edge(
                 relation.source.id,
                 relation.target.id,
@@ -132,8 +132,8 @@ class OwnershipGraph(GraphModels):
         Returns:
             OwnershipGraph containing all nodes and relations from the data
         """
-        nodes: Set[OwnershipNode] = set()
-        relations: Set[OwnershipRelation] = set()
+        nodes: dict[str, OwnershipNode] = {}
+        relations: dict[str, OwnershipRelation] = {}
         
         for data in relations_data:
             source_node = OwnershipNode(id=str(data.source), name=data.source_name)
@@ -150,14 +150,14 @@ class OwnershipGraph(GraphModels):
                 target_depth=data.target_depth
             )
             
-            nodes.add(source_node)
-            nodes.add(target_node)
-            relations.add(relation)
+            nodes[source_node.id] = source_node
+            nodes[target_node.id] = target_node
+            relations[relation.id] = relation
         
         return cls(nodes=nodes, relations=relations)
     
     def get_focus_company(self) -> OwnershipNode:
-        for relation in self.relations:
+        for relation in self.relations.values():
             if relation.target_depth == 0:
                 return relation.target   
 
@@ -173,9 +173,8 @@ class OwnershipGraph(GraphModels):
             for source_id, target_id, edge_attrs in graph.in_edges(node_id, data=True):
                 if edge_attrs.get('target_depth') == 0:
                     # Find the corresponding node from our nodes set
-                    for node in self.nodes:
-                        if node.id == node_id:
-                            return node
+                    if node_id in self.nodes: 
+                        return self.nodes[node_id]
         
         raise ValueError("No focus company found (no node with depth = 0)")
 
@@ -188,14 +187,13 @@ class OwnershipGraph(GraphModels):
         for source_id in graph.predecessors(target.id):
             edge_data = graph.get_edge_data(source_id, target.id)
 
-            # Find the corresponding relation from our relations set
-            for relation in self.relations:
-                if (relation.source.id == source_id and 
-                    relation.target.id == target.id and 
-                    relation.id == edge_data['id'] and 
-                    relation.active):
-                    relations.add(relation)
-                    break
+            relation = self.relations.get(edge_data['id'])
+
+            if not relation: 
+                continue 
+
+            relations.add(relation)
+
         
         return relations
 
@@ -207,15 +205,13 @@ class OwnershipGraph(GraphModels):
         # Get all outgoing edges from the source node
         for target_id in graph.successors(source.id):
             edge_data = graph.get_edge_data(source.id, target_id)
-            # Find the corresponding relation from our relations set
-            for relation in self.relations:
-                if (relation.source.id == source.id and 
-                    relation.target.id == target_id and 
-                    relation.id == edge_data['id'] and 
-                    relation.active):
-                    relations.add(relation)
-                    break
-        
+
+            relation = self.relations.get(edge_data['id'])
+
+            if not relation: 
+                continue 
+
+            relations.add(relation)
         return relations
     
 
@@ -226,11 +222,12 @@ class OwnershipGraph(GraphModels):
         
         # Get all nodes that can reach the target node
         for source_id in nx.ancestors(graph, target.id):
-            # Find the corresponding node from our nodes set
-            for node in self.nodes:
-                if node.id == source_id:
-                    owners.add(node)
-                    break
+
+            owner = self.nodes.get(source_id) 
+            if not owner: 
+                continue 
+
+            owners.add(owner) 
         
         return owners
 
@@ -294,23 +291,24 @@ class OwnershipGraph(GraphModels):
             source_id = path[i]
             target_id = path[i + 1]
             edge_data = graph.get_edge_data(source_id, target_id)
+
+            if not edge_data: 
+                continue 
+
+            relation = self.relations.get(edge_data['id'])
+
+            if not relation: 
+                continue
+
+            ownership_path.append(relation) 
             
-            ownership_path.append(OwnershipRelation(
-                id=edge_data['id'],
-                source=OwnershipNode(id=source_id, name=graph.nodes[source_id]['name']),
-                target=OwnershipNode(id=target_id, name=graph.nodes[target_id]['name']),
-                share=ShareRange(lower=edge_data['lower'], average=edge_data['average'], upper=edge_data['upper']),
-                active=edge_data['active'],
-                source_depth=edge_data['source_depth'],
-                target_depth=edge_data['target_depth'],
-            ))
         
         return ownership_path
     
 
     def get_owner_by_name(self, name: str) -> OwnershipNode:
         """Get the ownership structure of a given node."""
-        for node in self.nodes:
+        for node in self.nodes.values():
             if node.name == name:
                 return node
         raise ValueError(f"No node found with name: {name}")
