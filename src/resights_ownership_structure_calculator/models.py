@@ -231,42 +231,30 @@ class OwnershipGraph(GraphModels):
         
         return owners
 
-    def get_real_ownership(self, node: OwnershipNode) -> ShareRange:
+    def get_real_ownership(self, source_node: OwnershipNode, target_node: OwnershipNode) -> ShareRange:
         """Calculate the real ownership percentage of a node in the focus company.
         
         This method finds a path from the given node to the focus company and
         calculates the effective ownership percentage along that path.
         """
-        graph = self.get_graph()
-        focus_company = self.get_focus_company()
-        
-        # Check if there's a path from node to focus company
-        if not nx.has_path(graph, node.id, focus_company.id):
-            raise ValueError(f"No ownership path from {node.name} to {focus_company.name}")
-        
-        # Get the shortest path from node to focus company
-        path = nx.shortest_path(graph, node.id, focus_company.id)
 
-        
-        # Initialize with 100% ownership
-
+        path = self.get_ownership_path(source_node, target_node)
         lower = 100.0
         average = 100.0
         upper = 100.0
 
-       
-        # Calculate ownership along the path
-        for i in range(len(path) - 1):
-            source_id = path[i]
-            target_id = path[i + 1]
-            edge_data = graph.get_edge_data(source_id, target_id)
-            
-            # Multiply by the ownership percentage at each step
-            lower *= edge_data['lower'] / 100.0
-            average *= edge_data['average'] / 100.0
-            upper *= edge_data['upper'] / 100.0
-        
+        for ownership_relation in path: 
+            print(ownership_relation.source.name, "-->",  ownership_relation.target.name, (ownership_relation.share.lower, ownership_relation.share.average, ownership_relation.share.upper))
+
+            lower *= ownership_relation.share.lower / 100.0
+            average *= ownership_relation.share.average / 100.0
+            upper *= ownership_relation.share.upper / 100.0
+
+            print("Ownership Percentage:", lower, average, upper)
+
+
         return ShareRange(lower=lower, average=average, upper=upper)
+
     
 
     def get_ownership_path(self, source_node: OwnershipNode, target_node: OwnershipNode) -> list[OwnershipRelation]:
