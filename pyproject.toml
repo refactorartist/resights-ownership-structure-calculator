@@ -6,9 +6,11 @@ dependencies = [
     "pydantic>=2.11.4",
     "orjson>=3.10.18",
     "dotenv>=0.9.9",
-    "typer>=0.15.3",
     "mypy>=1.15.0",
     "networkx>=3.4.2",
+    "typer>=0.9.0",
+    "click==8.1.7",
+
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -31,7 +33,7 @@ allow-direct-references = true
 packages = ["src/resights_ownership_structure_calculator"]
 
 [tool.rye.scripts]
-cli = { call = "resights_ownership_structure_calculator.commands.cli:app" }
+cli = { call = "resights_ownership_structure_calculator.main:app" }
 test = "pytest"
 lint = "ruff check ."
 format = "black ."
