@@ -246,6 +246,7 @@ class OwnershipGraph(GraphModels):
         
         # Get the shortest path from node to focus company
         path = nx.shortest_path(graph, node.id, focus_company.id)
+
         
         # Initialize with 100% ownership
 
@@ -268,21 +269,26 @@ class OwnershipGraph(GraphModels):
         return ShareRange(lower=lower, average=average, upper=upper)
     
 
-    def get_ownership_path(self, node: OwnershipNode) -> list[OwnershipRelation]:
+    def get_ownership_path(self, source_node: OwnershipNode, target_node: OwnershipNode) -> list[OwnershipRelation]:
         """Calculate the real ownership percentage of a node in the focus company.
         
         This method finds a path from the given node to the focus company and
         calculates the effective ownership percentage along that path.
         """
         graph = self.get_graph()
-        focus_company = self.get_focus_company()
         
-        # Check if there's a path from node to focus company
-        if not nx.has_path(graph, node.id, focus_company.id):
-            raise ValueError(f"No ownership path from {node.name} to {focus_company.name}")
+        
+        # Check if there's a path from source to target
+        if not nx.has_path(graph, source_node.id, target_node.id):
+            # Try the reverse direction if original path not found
+            if nx.has_path(graph, target_node.id, source_node.id):
+                # Swap source and target nodes
+                source_node, target_node = target_node, source_node
+            else:
+                raise ValueError(f"No ownership path between {source_node.name} and {target_node.name}")
         
         # Get the shortest path from node to focus company
-        path = nx.shortest_path(graph, node.id, focus_company.id)
+        path = nx.shortest_path(graph, source_node.id, target_node.id)
 
         ownership_path: list[OwnershipRelation] = []
         
